@@ -5,26 +5,27 @@ locals {
     import json
     import boto3
     import urllib.parse
+    import urllib.parse
+    import io
     from PIL import Image
     s3 = boto3.resource('s3')
     s3_client = boto3.client('s3')
     def lambda_handler(event, context):
        srcb="${var.bucket_list[0]}"
        dscb="${var.bucket_list[1]}"
-    
+
        current_object_key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
-       exif_op="exif" + current_object_key
-       copy_source = {
-        'Bucket':  srcb,
-        'Key': current_object_key
-       }
-       s3.meta.client.copy(copy_source, srcb, exif_op)
-     
-       copy_source1 = {
-         'Bucket': srcb,
-         'Key': exif_op
-       }
-       s3.meta.client.copy(copy_source1, dscb, current_object_key)
+       bucket = s3.Bucket(srcb)
+       image = bucket.Object(current_object_key)
+       img_data = image.get().get('Body').read()
+       image = Image.open(io.BytesIO(img_data))
+       data = list(image.getdata())
+       image_without_exif = Image.new(image.mode, image.size)
+       image_without_exif.putdata(data)
+       new_image_data = io.BytesIO()
+       image_without_exif.save(new_image_data,'JPEG')
+       new_image_data.seek(0)
+       s3_client.put_object(Bucket=dscb, Key=current_object_key, Body=new_image_data)
 EOT
   bucketreadpolicy = <<-EOT
     {
@@ -67,7 +68,7 @@ EOT
                 },
                 "Effect": "Allow",
                 "Sid": ""
-             
+
            }
          ]
      }
@@ -86,5 +87,5 @@ EOT
           }
         ]
      }
-EOT 
+EOT
 }
