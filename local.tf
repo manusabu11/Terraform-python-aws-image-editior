@@ -5,7 +5,6 @@ locals {
     import json
     import boto3
     import urllib.parse
-    import urllib.parse
     import io
     from PIL import Image
     s3 = boto3.resource('s3')
