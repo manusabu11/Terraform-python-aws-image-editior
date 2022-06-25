@@ -5,6 +5,7 @@ locals {
     import json
     import boto3
     import urllib.parse
+    import os
     import io
     from PIL import Image
     s3 = boto3.resource('s3')
@@ -12,8 +13,10 @@ locals {
     def lambda_handler(event, context):
        srcb="${var.bucket_list[0]}"
        dscb="${var.bucket_list[1]}"
-
        current_object_key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
+       name,extension = os.path.splitext(current_object_key)
+       if extension.lower() not in ['.jpg','.jpeg']:
+         return
        bucket = s3.Bucket(srcb)
        image = bucket.Object(current_object_key)
        img_data = image.get().get('Body').read()
